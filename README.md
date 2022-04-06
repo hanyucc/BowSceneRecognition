@@ -32,7 +32,7 @@ Currently the algorithm is written fully in Python, and although the algorithm u
 
 I aim to parallelize different parts of the algorithm: 
 - convolving images with filters in parallel
-- clustering visual words using K-means in parallel
+- clustering visual words using k-means in parallel
 - assigning cluster centers for each pixel and creating histogram features in parallel
 - implementing parallelized kNN classifier and/or logistic regression with parallelized matrix multiplication (if time permits)
 
