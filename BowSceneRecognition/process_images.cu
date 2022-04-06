@@ -1,57 +1,15 @@
 #include <fstream>
-#include <filesystem>
 #include <chrono>
 
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
 #include "process_images.h"
+#include "utils.h"
 
 using namespace cv;
 using namespace std;
 using namespace chrono;
-namespace fs = filesystem;
-
-void loadImages(vector<string>& labels, vector<Mat>& images)
-{
-    string path = "data";
-    for (const auto& e1 : fs::directory_iterator(path)) {
-
-        string label = e1.path().string();
-        label = label.substr(5);
-
-        for (const auto& e2 : fs::directory_iterator(e1.path())) {
-            string path = e2.path().string();
-            auto im = imread(path, cv::IMREAD_GRAYSCALE);
-            im.convertTo(im, CV_32FC1, 1 / 255.0);
-
-            images.push_back(im);
-            labels.push_back(label);
-        }
-    }
-}
-
-void loadFilters(vector<Mat>& filters)
-{
-    string path = "filters.csv";
-    ifstream fin(path);
-
-    while (!fin.eof()) {
-        int size;
-        fin >> size;
-
-
-        Mat filter(size, size, CV_32FC1);
-        for (int i = 0; i < size; i += 1) {
-            for (int j = 0; j < size; j += 1) {
-                fin >> filter.at<float>(i, j);
-            }
-
-        }
-        filters.push_back(filter);
-    }
-}
-
 
 /*
 * Sequential baseline algorithm, iterates over image pixels and filter pixels naively
@@ -92,12 +50,13 @@ Mat applyFilterSeq(Mat image, Mat filter)
 
 void processImagesSeq()
 {
+    vector<string> paths;
     vector<string> labels;
     vector<Mat> images;
 
     vector<Mat> filters;
 
-    loadImages(labels, images);
+    loadImages(paths, labels, images);
     loadFilters(filters);
 
     vector<vector<Mat>> responses(images.size(), vector<Mat>(filters.size()));
@@ -193,19 +152,20 @@ Mat applyFilterPar_pixel(Mat image, Mat filter)
 
 void processImagesPar_pixel()
 {
+    vector<string> paths;
     vector<string> labels;
     vector<Mat> images;
 
     vector<Mat> filters;
 
-    loadImages(labels, images);
+    loadImages(paths, labels, images);
     loadFilters(filters);
 
     vector<vector<Mat>> responses(images.size(), vector<Mat>(filters.size()));
 
     auto start = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-    for (int i = 0; i < 500; i += 1) {
+    for (int i = 0; i < 100; i += 1) {
         for (int j = 0; j < filters.size(); j += 1) {
             Mat r = applyFilterPar_pixel(images[i], filters[j]);
             responses[i][j] = r;
@@ -216,7 +176,7 @@ void processImagesPar_pixel()
     }
     auto end = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-    cout << "computation time per image (par): " << (end - start) / 1000.0 / 500 << endl;
+    cout << "computation time per image (par): " << (end - start) / 1000.0 / 100 << endl;
 }
 
 
@@ -260,13 +220,13 @@ __global__ void filterHelper(float* image, float* filterData, int* filterOffsets
 vector<Mat> applyFilterPar(int idx, float* deviceImages, int* imageOffsets, int* imageHeights, int* imageWidths,
     float* deviceFilters, int* devicefilterOffsets, int* devicefilterSizes, int numFilters, int filterDataSize)
 {
-    int BLOCK_SIZE = 32;
+    int BLOCK_SIZE = 8;
 
     int h, w;
     h = imageHeights[idx];
     w = imageWidths[idx];
 
-    dim3 grid((h + BLOCK_SIZE + 1) / BLOCK_SIZE, (w + BLOCK_SIZE + 1) / BLOCK_SIZE, numFilters);
+    dim3 grid((h + BLOCK_SIZE) / BLOCK_SIZE, (w + BLOCK_SIZE) / BLOCK_SIZE, numFilters);
     dim3 block(BLOCK_SIZE, BLOCK_SIZE);
 
     float* responseData = new float[numFilters * h * w];
@@ -294,12 +254,13 @@ vector<Mat> applyFilterPar(int idx, float* deviceImages, int* imageOffsets, int*
 
 void processImagesPar()
 {
+    vector<string> paths;
     vector<string> labels;
     vector<Mat> images;
 
     vector<Mat> filters;
 
-    loadImages(labels, images);
+    loadImages(paths, labels, images);
     loadFilters(filters);
 
     vector<vector<Mat>> responses;
@@ -357,15 +318,19 @@ void processImagesPar()
 
     auto start = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-    for (int i = 0; i < 500; i += 1) {
+    for (int i = 0; i < images.size(); i += 1) {
         vector<Mat> r = applyFilterPar(i, deviceImages, imageOffsets, imageHeights, imageWidths, deviceFilters, devicefilterOffsets, devicefilterSizes, filters.size(), filterDataSize);
         responses.push_back(r);
     }
     auto end = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-    cout << "computation time per image (par): " << (end - start) / 1000.0 / 500 << endl;
+    cout << "computation time per image (par): " << (end - start) / 1000.0 / images.size() << endl;
 
     cudaFree(deviceFilters);
     cudaFree(devicefilterOffsets);
     cudaFree(devicefilterSizes); 
+
+    // copy(responses.begin(), responses.end(), res.begin());
+    saveResponses(paths, responses);
+
 }

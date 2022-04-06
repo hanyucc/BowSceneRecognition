@@ -5,6 +5,7 @@
 #include <fstream>
 
 #include "process_images.h"
+#include "create_dictionary.h"
 
 using namespace cv;
 using namespace std;
@@ -16,7 +17,12 @@ int main(int argc, char** argv)
 
     string s = argv[0];
 
-    processImagesPar();
+    if (s.compare("p") == 0) {
+        processImagesPar();
+    }
+    else if (s.compare("d") == 0) {
+        createDictionary();
+    }
     //processImagesSeq();
 
     return 0;
