@@ -13,6 +13,8 @@ using namespace chrono;
 
 /*
 * Sequential baseline algorithm, iterates over image pixels and filter pixels naively
+* 200 images
+* 
 * Computation time: 0.61532
 */
 Mat applyFilterSeq(Mat image, Mat filter)
@@ -80,6 +82,7 @@ void processImagesSeq()
 
 /*
 * Parallelized only over image pixels
+* 200 images
 * 
 *   grid(h, w) block(1, 1)              0.05730
 *   grid(h/4, w/4) block(4, 4)          0.02671
@@ -184,6 +187,7 @@ void processImagesPar_pixel()
 * Parallelized over image pixels & filters
 * All filters & images are sent to GPU memory in once as a 1-d array
 * One image patch with one filter per block
+* 200 images
 * 
 *   grid(h, w) block(1, 1)              0.04536
 *   grid(h/4, w/4) block(4, 4)          0.01180

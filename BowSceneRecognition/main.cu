@@ -21,8 +21,9 @@ int main(int argc, char** argv)
         processImagesPar();
     }
     else if (s.compare("d") == 0) {
-        createDictionary();
+        createDictionaryPar();
     }
+    createDictionaryPar();
     //processImagesSeq();
 
     return 0;

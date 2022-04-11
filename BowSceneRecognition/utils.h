@@ -7,9 +7,9 @@
 #include <filesystem>
 #include <fstream>
 
-namespace fs = filesystem;
 using namespace cv;
 using namespace std;
+namespace fs = filesystem;
 
 void loadImages(vector<string>& paths, vector<string>& labels, vector<Mat>& images);
 

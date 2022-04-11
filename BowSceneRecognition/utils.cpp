@@ -89,7 +89,7 @@ void loadResponses(const vector<string>& paths, vector<vector<Mat>>& responses, 
 {
     responses.clear();
     string dir = "responses\\";
-    for (int i = 0; i < paths.size(); i += 1) {
+    for (int i = 0; i < 200; i += 1) {
         string dirPath = paths[i].substr(5, paths[i].size() - 9);
         dirPath = dir + dirPath;
 
