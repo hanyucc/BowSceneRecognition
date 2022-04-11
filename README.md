@@ -2,11 +2,13 @@
 
 Team members: Hanyu Chen (hanyuche)
 
-## Summary
+## Proposal
+
+### Summary
 
 The project is based on 16-385 _Computer Vision_ Assignment 5 ([link](http://16385.courses.cs.cmu.edu/spring2021/assignments)). I would like to parallelize different parts of the bag-of-words scene recognition algorithm (originally written in Python) primarily using CUDA on my RTX 2070 Super graphics card.
 
-## Background
+### Background
 
 The current algorithm can be described in four parts:
 
@@ -16,17 +18,17 @@ The current algorithm can be described in four parts:
 - A common classification algorithm is trained on the image features (i.e. the probability distributions) along with the C class labels to produce a classifier capable of recognizing different scenes.
 
 
-## The Challenge
+### The Challenge
 
 In the algorithms, different parts can benefit from parallelization differently, and there are often multiple axes of parallelization that are possible. For example, in convolving multiple images with multiple filters, one might choose to parallelize between image pixels, filter pixels, across images, or across filters. Testing is needed to determine which one works the best. Another example would be during k-means, each pixel needs to compute its distance to each cluster center and find the one with the minimum distance. One might choose to parallelize between pixels, cluster centers, or along the K-dimensional vectors. Synchronization and atomic operations might also be useful when accumulating sums and determining the minimum values.
 
 
-## Resources
+### Resources
 
 I will mainly be structuring my code based on the current Python code I have from 16-385 _Computer Vision_ Assignment 5 ([link](http://16385.courses.cs.cmu.edu/spring2021/assignments)) and first rewriting it in C++ to obtain a baseline sequential algorithm. I will then try to parallelize different parts of the algorithm from there.
 
 
-## Goals & Deliverables
+### Goals & Deliverables
 
 Currently the algorithm is written fully in Python, and although the algorithm utilizes libraries like NumPy and SciPy that has some parallelization capabilities, a major portion of the pipeline is still sequential. 
 
@@ -37,3 +39,18 @@ I aim to parallelize different parts of the algorithm:
 - implementing parallelized kNN classifier and/or logistic regression with parallelized matrix multiplication (if time permits)
 
 I would consider completing up to the kNN classifier what I plan to achieve and consider implementing other classification algorithms like logistic regression and support vector machines to be extra goals that I hope to achieve.
+
+### Platform Choice
+
+I have chosen to implement this algorithm using CUDA because there is little communication between threads in this algorithm, and the problem can be divided into many smaller subproblems than can mostly be solved independently. Therefore, being able to parallelize the algorithm on a large number of CUDA cores would lead to a significant speedup over the sequential version.
+
+
+## Milestone
+
+April 1: Completed basic utility functions such as loading and storing images. Implemented sequential baseline algorithm for applying filters to images.
+
+April 4: Implemented three parallel versions of image filtering. The first algorithm parallelizes over both image pixels (each block responsible for an image pixel) and filter pixels (each thread responsible for a filter pixel). The performance is not great since multiple threads are simultaneously writing to global variables, requiring atomic operations and synchronization. The second algorithm parallelizes over only image pixels (each thread responsible for an image pixel) and convolves an image block with a filter sequentially. This can be thought as the most naive version of parallel image filtering, achieving a speedup of 24x at best. The third algorithm parallelizes over both image pixels and filters (each thread responsible for an image pixel and a filter). It also combines all images and all filters into single 1D arrays that are copied to the GPU memory only once at the start of the algorithm. This final version achieves a 56x speedup at best.
+
+April 7: Implemented sequential baseline algorithm for k-means, including utility function for loading and storing filter responses and selecting random points.
+
+April 10: Implemented parallel versions of k-means.
