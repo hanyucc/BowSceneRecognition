@@ -25,27 +25,15 @@ using namespace std;
 using namespace chrono;
 namespace fs = filesystem;
 
-float distEuc(float* x, float* y, int n) 
-{
-	float sum = 0;
-	
-	//#pragma omp parallel for shared(sum) reduction(+:sum)
-	for (int i = 0; i < n; i += 1) {
-		sum += pow((x[i] - y[i]), 2);
-	}
-
-	return sqrt(sum);
-	
-}
-
 
 /*
 * Sequential baseline algorithm, iterates over data points and cluster centers naively
-* 200 images, 100 points/image, 50 clusters
+* 200 images, 200 points/image, 500 clusters
 *
-* Computation time: 74.615s (83 iterations) / 0.899s per iteration
+* Computation time: 241.765 (101 iterations) / 2.394s per iteration  (with OpenMP)
+*											   17.27s per iteration	 (without OpenMP)
 */
-void kMeansSeq(const vector<float*>& points, vector<float*> centers, int K = 32, int k = 100)
+void kMeansSeq(const vector<float*>& points, vector<float*>& centers, int K = 32, int k = 100)
 {
 	int l = points.size();
 
@@ -83,7 +71,7 @@ void kMeansSeq(const vector<float*>& points, vector<float*> centers, int K = 32,
 
 		float totalDist = 0;
 
-		//#pragma omp parallel for
+		// #pragma omp parallel for
 		for (int i = 0; i < l; i += 1) {
 			int nearest = 0;
 			float minDist = 1e20;
@@ -95,7 +83,7 @@ void kMeansSeq(const vector<float*>& points, vector<float*> centers, int K = 32,
 				}
 			}
 			cluster[i] = nearest;
-			//#pragma omp atomic
+			// #pragma omp critical
 			{
 				numPoints[nearest] += 1;
 				totalDist += minDist;
@@ -121,7 +109,9 @@ void kMeansSeq(const vector<float*>& points, vector<float*> centers, int K = 32,
 			firstIter = false;
 		}
 
+		// #pragma omp parallel for
 		for (int i = 0; i < k; i += 1) {
+			// #pragma omp parallel for
 			for (int j = 0; j < K; j += 1) {
 				centers[i][j] = sumPoints[i][j] / numPoints[i];
 			}
@@ -131,6 +121,10 @@ void kMeansSeq(const vector<float*>& points, vector<float*> centers, int K = 32,
 
 		cout << "iteration " << cnt << " total dist: " << totalDist << endl;
 		cnt += 1;
+
+		if (cnt > 10) {
+			break;
+		}
 
 	}
 
@@ -153,11 +147,10 @@ void randomSamples(const vector<vector<Mat>>& responses, vector<float*>& points,
 
 		uniform_int_distribution<int> uni(0, h * w);
 		vector<int> samples;
-		for (int i = 0; i < m; i += 1) {
+		for (int j = 0; j < m; j += 1) {
 			samples.push_back(uni(rng));
 		}
 
-		//#pragma omp parallel for
 		for (int j = 0; j < m; j += 1) {
 			int s = samples[j];
 			int hh = s / w;
@@ -173,28 +166,11 @@ void randomSamples(const vector<vector<Mat>>& responses, vector<float*>& points,
 }
 
 
-void saveCenters(const vector<float*>& centers, const int numFilters) 
-{
-	ofstream fout("centers.txt");
-
-	fout << centers.size() << " " << numFilters << endl;
-
-	for (int i = 0; i < centers.size(); i += 1) {
-		for (int j = 0; j < numFilters; j += 1) {
-			fout << centers[i][j] << " ";
-		}
-		fout << endl;
-	}
-
-	fout.close();
-}
-
-
 void createDictionarySeq()
 {
 
 	int numFilters = 32;
-	int m = 100, k = 50;
+	int m = 200, k = 500;
 
 	vector<string> paths;
 	vector<vector<Mat>> responses;
@@ -224,8 +200,7 @@ void createDictionarySeq()
 }
 
 
-
-__device__ float deviceDistEuc(float* x, float* y, int n)
+__device__ float deviceDistEuc1(float* x, float* y, int n)
 {
 	float sum = 0;
 
@@ -247,7 +222,7 @@ __global__ void kMeansHelper1(float* points, float* centers, int* cluster,
 		int nearest = 0;
 		float minDist = 1e20;
 		for (int j = 0; j < k; j += 1) {
-			float dist = deviceDistEuc(points + idx * K, centers + j * K, K);
+			float dist = deviceDistEuc1(points + idx * K, centers + j * K, K);
 			if (dist < minDist) {
 				minDist = dist;
 				nearest = j;
@@ -263,7 +238,6 @@ __global__ void kMeansHelper1(float* points, float* centers, int* cluster,
 		}
 	}
 }
-
 
 
 __global__ void kMeansHelper2(float* centers, int* cluster, int* oldCluster,
@@ -284,17 +258,16 @@ __global__ void kMeansHelper2(float* centers, int* cluster, int* oldCluster,
 
 /*
 * Parallelizes over data points for both phases of the algorithm
-* 200 images, 100 points/image, 50 clusters
+* 200 images, 200 points/image, 500 clusters
 *
-* Block size 1:		120.614s	(192 iterations)	0.6282s per iteration
-* Block size 16:	6.418s		(153 iterations)	0.0419s per iteration
-* Block size 64:	2.733s		(129 iterations)	0.0212s per iteration
-* Block size 256:	3.670s		(170 iterations)	0.0216s per iteration
-* Block size 1024:	5.102s		(121 iterations)	0.0422s per iteration
+* Block size 16:	133.33s		(166 iterations)	0.8032s per iteration
+* Block size 64:	44.711s		(111 iterations)	0.4028s per iteration
+* Block size 256:	48.157s		(119 iterations)	0.4047s per iteration
+* Block size 1024:	38.902s		(96 iterations)		0.4052s per iteration
 */
-void kMeansPar(const vector<float*>& points, vector<float*> centers, int K, int k)
+void kMeansPar(const vector<float*>& points, vector<float*>& centers, int K, int k)
 {
-	int BLOCK_SIZE = 256;
+	int BLOCK_SIZE = 64;
 
 	centers = vector<float*>(k);
 
@@ -331,7 +304,7 @@ void kMeansPar(const vector<float*>& points, vector<float*> centers, int K, int 
 	cudaMemcpy(deviceCenters, initCenters, sizeof(float) * k * K, cudaMemcpyHostToDevice);
 	cudaMemcpy(devicePoints, pointsData, sizeof(float) * l * K, cudaMemcpyHostToDevice);
 
-	dim3 grid((l + BLOCK_SIZE + 1) / BLOCK_SIZE);
+	dim3 grid((l + BLOCK_SIZE - 1) / BLOCK_SIZE);
 	dim3 block(BLOCK_SIZE);
 
 	bool notDone;
@@ -350,14 +323,6 @@ void kMeansPar(const vector<float*>& points, vector<float*> centers, int K, int 
 		kMeansHelper2 << <grid, block >> > (deviceCenters, deviceCluster, deviceOldCluster, deviceNumPoints, deviceSumPoints, l, k, K, deviceNotDone);
 
 		cudaMemcpy(deviceOldCluster, deviceCluster, sizeof(int) * l, cudaMemcpyDeviceToDevice);
-
-		//int* cluster = new int[l];
-		//cudaMemcpy(cluster, deviceCluster, sizeof(int) * l, cudaMemcpyDeviceToHost);
-
-		//for (int i = 0; i < l; i += 1) {
-		//	cout << cluster[i] << " ";
-		//}
-		//cout << endl;
 
 		float dist;
 		cudaMemcpy(&dist, deviceTotalDist, sizeof(float), cudaMemcpyDeviceToHost);
@@ -384,11 +349,15 @@ void kMeansPar(const vector<float*>& points, vector<float*> centers, int K, int 
 
 }
 
+
+// k-means computation time (par): 1197.05
+// m = 200, k = 500
+// 403 iterations
 void createDictionaryPar()
 {
 
 	int numFilters = 32;
-	int m = 100, k = 50;
+	int m = 200, k = 500;
 
 	vector<string> paths;
 	vector<vector<Mat>> responses;

@@ -15,7 +15,8 @@ using namespace chrono;
 * Sequential baseline algorithm, iterates over image pixels and filter pixels naively
 * 200 images
 * 
-* Computation time: 0.61532
+* Computation time: 0.08765 per image (with OpenMP)
+*                   0.61532 per image (without OpenMP)
 */
 Mat applyFilterSeq(Mat image, Mat filter)
 {
@@ -33,7 +34,9 @@ Mat applyFilterSeq(Mat image, Mat filter)
     float* filterData = (float*)(filter.data);
     float* responseData = (float*)(response.data);
 
+#pragma omp parallel for
     for (int i = 0; i < h; i += 1) {
+#pragma omp parallel for
         for (int j = 0; j < w; j += 1) {
 
             float r = 0;
@@ -65,18 +68,17 @@ void processImagesSeq()
 
     auto start = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-    for (int i = 0; i < 100; i += 1) {
+#pragma omp parallel for
+    for (int i = 0; i < 200; i += 1) {
+#pragma omp parallel for
         for (int j = 0; j < filters.size(); j += 1) {
             Mat r = applyFilterSeq(images[i], filters[j]);
             responses[i][j] = r;
         }
-        if (i % 10 == 0) {
-            cout << "completed " << i << endl;
-        }
     }
     auto end = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-    cout << "computation time per image (seq): " << (end - start) / 1000.0 / 100 << endl;
+    cout << "computation time per image (seq): " << (end - start) / 1000.0 / 200 << endl;
 }
 
 
@@ -121,7 +123,7 @@ Mat applyFilterPar_pixel(Mat image, Mat filter)
     w = image.size().width;
     s = filter.size().height;
 
-    dim3 grid((h + BLOCK_SIZE + 1) / BLOCK_SIZE, (w + BLOCK_SIZE + 1) / BLOCK_SIZE);
+    dim3 grid((h + BLOCK_SIZE - 1) / BLOCK_SIZE, (w + BLOCK_SIZE - 1) / BLOCK_SIZE);
     dim3 block(BLOCK_SIZE, BLOCK_SIZE);
 
     int pad = (s - 1) / 2;
@@ -168,7 +170,7 @@ void processImagesPar_pixel()
 
     auto start = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-    for (int i = 0; i < 100; i += 1) {
+    for (int i = 0; i < 200; i += 1) {
         for (int j = 0; j < filters.size(); j += 1) {
             Mat r = applyFilterPar_pixel(images[i], filters[j]);
             responses[i][j] = r;
@@ -230,7 +232,7 @@ vector<Mat> applyFilterPar(int idx, float* deviceImages, int* imageOffsets, int*
     h = imageHeights[idx];
     w = imageWidths[idx];
 
-    dim3 grid((h + BLOCK_SIZE) / BLOCK_SIZE, (w + BLOCK_SIZE) / BLOCK_SIZE, numFilters);
+    dim3 grid((h + BLOCK_SIZE - 1) / BLOCK_SIZE, (w + BLOCK_SIZE - 1) / BLOCK_SIZE, numFilters);
     dim3 block(BLOCK_SIZE, BLOCK_SIZE);
 
     float* responseData = new float[numFilters * h * w];
@@ -334,7 +336,6 @@ void processImagesPar()
     cudaFree(devicefilterOffsets);
     cudaFree(devicefilterSizes); 
 
-    // copy(responses.begin(), responses.end(), res.begin());
-    saveResponses(paths, responses);
+    // saveResponses(paths, responses);
 
 }

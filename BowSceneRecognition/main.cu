@@ -6,6 +6,8 @@
 
 #include "process_images.h"
 #include "create_dictionary.h"
+#include "create_features.h"
+#include "classify_images.h"
 
 using namespace cv;
 using namespace std;
@@ -23,7 +25,7 @@ int main(int argc, char** argv)
     else if (s.compare("d") == 0) {
         createDictionaryPar();
     }
-    createDictionaryPar();
+    classifyImagesSeq();
     //processImagesSeq();
 
     return 0;

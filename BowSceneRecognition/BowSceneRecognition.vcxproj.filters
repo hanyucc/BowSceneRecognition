@@ -27,6 +27,12 @@
     <CudaCompile Include="create_dictionary.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
+    <CudaCompile Include="create_features.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="classify_images.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
@@ -38,9 +44,15 @@
     <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="create_features.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="classify_images.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="utils.cpp">
+    <ClCompile Include="utils.cu">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
