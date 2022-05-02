@@ -8,7 +8,6 @@
 #include "create_dictionary.h"
 #include "create_features.h"
 #include "classify_images.h"
-#include "utils.h"
 
 using namespace cv;
 using namespace std;
@@ -20,12 +19,12 @@ int main(int argc, char** argv)
 
     string s = argv[0];
 
-    //if (s.compare("p") == 0) {
-    //    processImagesPar();
-    //}
-    //else if (s.compare("d") == 0) {
-    //    createDictionaryPar();
-    //}
+    if (s.compare("p") == 0) {
+        processImagesPar();
+    }
+    else if (s.compare("d") == 0) {
+        createDictionaryPar();
+    }
     classifyImagesSeq();
     //processImagesSeq();
 

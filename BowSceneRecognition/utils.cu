@@ -154,22 +154,6 @@ float distEuc(float* x, float* y, int n)
 }
 
 
-float distChi2(float* x, float* y, int n)
-{
-    float sum = 0;
-
-    for (int i = 0; i < n; i += 1) {
-        if (x[i] + y[i] == 0) {
-            continue;
-        }
-        sum += (pow(x[i] - y[i], 2)) / (x[i] + y[i]);
-    }
-
-    return sum;
-
-}
-
-
 void saveFeatures(const vector<string>& paths, const vector<float*>& features, const int numCenters)
 {
     ofstream fout("features.txt");
