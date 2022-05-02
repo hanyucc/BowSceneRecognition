@@ -29,6 +29,8 @@ void loadCenters(vector<float*>& centers);
 
 float distEuc(float* x, float* y, int n);
 
+float distChi2(float* x, float* y, int n);
+
 void saveFeatures(const vector<string>& paths, const vector<float*>& features, const int numCenters);
 
 void loadFeatures(vector<string>& labels, vector<string>& trainLabels, vector<string>& testLabels,
