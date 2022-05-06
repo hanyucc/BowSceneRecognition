@@ -2,6 +2,11 @@
 
 Team members: Hanyu Chen (hanyuche)
 
+## Final Report
+
+[Report](https://github.com/leniumC/BowSceneRecognition/blob/master/15_418_report.pdf) & [presentation video](https://drive.google.com/file/d/1wrNvVvT71HLRdieH3rnzjiK50D9u7F25/view?usp=sharing)
+
+
 ## Proposal
 
 ### Summary
